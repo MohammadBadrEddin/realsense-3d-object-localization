@@ -1,0 +1,17 @@
+# ROS2 build folders
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python virtual env
+venv/
+.env/
+
+# VSCode
+.vscode
