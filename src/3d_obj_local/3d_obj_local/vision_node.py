@@ -20,6 +20,8 @@ ARUCO_ID = 0
 MARKER_LENGTH_M = 0.10
 
 CONF_THRESHOLD = 0.75
+# =========================
+FORBIDDEN_RADIUS = 0.15  # 15 cm
 
 # =========================
 # Vision state machine
@@ -33,9 +35,9 @@ STATE_WAIT_ROBOT = 1
 # manually measured
 # =========================
 
-BASE_OFFSET_X = 0.18
-BASE_OFFSET_Y = 0.00
-BASE_OFFSET_Z = -0.05
+BASE_OFFSET_X = 0.458
+BASE_OFFSET_Y = 0.029
+BASE_OFFSET_Z = -0.050
 
 # optional test
 # BASE_OFFSET_Z = -0.10
@@ -44,7 +46,7 @@ BASE_OFFSET_Z = -0.05
 # Model path
 # =========================
 
-package_path = get_package_share_directory("3d_obj_local")
+package_path = get_package_share_directory("vision_system")
 MODEL_PATH = os.path.join(package_path, "best.pt")
 
 
@@ -67,12 +69,21 @@ class VisionNode(Node):
         self.get_logger().info("Vision Node Started")
 
         # =========================
-        # Robot done subscriber
+        # Task complete subscriber
         # =========================
-        self.robot_done_sub = self.create_subscription(
+        self.task_complete = self.create_subscription(
             Bool,
-            "/robot_done",
-            self.robot_done_callback,
+            "/task_complete",
+            self.task_complete_callback,
+            10
+        )
+        
+        # =========================
+        # Task complete subscriber
+        # =========================
+        self.camera_done_pub = self.create_publisher(
+            Bool,
+            "/camera_done",
             10
         )
 
@@ -123,8 +134,8 @@ class VisionNode(Node):
         aruco_params = cv2.aruco.DetectorParameters()
         self.aruco_detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
 
-        # run every 5 seconds
-        self.timer = self.create_timer(5.0, self.vision_loop)
+        # run every  seconds
+        self.timer = self.create_timer(0.1, self.vision_loop)
 
     def vision_loop(self):
 
@@ -245,7 +256,13 @@ class VisionNode(Node):
                         p_marker[1] + BASE_OFFSET_Y,
                         p_marker[2] + BASE_OFFSET_Z
                     ])
+                    # =========================
+                    # FORBIDDEN ZONE (ignore near robot base)
+                    # =========================
+                    r = np.sqrt(p_robot[0]**2 + p_robot[1]**2)
 
+                    if r < FORBIDDEN_RADIUS:
+                        continue
                     dist = np.linalg.norm(p_robot)
 
                     if dist < best_dist:
@@ -276,6 +293,11 @@ class VisionNode(Node):
                 # =========================
                 # robot now executing task
                 # =========================
+                done_msg = Bool()
+                done_msg.data = True
+                self.camera_done_pub.publish(done_msg)
+
+                self.get_logger().info("Camera done -> Robot can execute task")
                 self.state = STATE_WAIT_ROBOT
 
         except Exception as e:
@@ -284,10 +306,10 @@ class VisionNode(Node):
     # =========================
     # Robot finished callback
     # =========================
-    def robot_done_callback(self, msg):
+    def task_complete_callback(self, msg):
 
         if msg.data:
-            self.get_logger().info("Robot finished pick and place")
+            self.get_logger().info("Robot finished task")
 
             self.state = STATE_SEARCH
 
