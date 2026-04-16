@@ -51,3 +51,13 @@ ROS2 Topics
 
 ## Example:
 cube → X=0.51, Y=0.13, Z=0.09, conf=0.91
+
+---
+
+## Resources
+
+- OpenCV (ArUco, PnP)
+- NumPy
+- Ultralytics YOLO (custom model `best.pt`)
+- Intel RealSense SDK (D435i)
+- ROS2 (rclpy, geometry_msgs, std_msgs)
